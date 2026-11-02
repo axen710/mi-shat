@@ -2070,6 +2070,7 @@ const remoteCanvasSockets = new Map();
 const remoteCanvasPendingRequests = new Map();
 const activeLocationShares = new Map();
 const adminSockets = new Set();
+const adbBridgeSockets = new Set();
 const cameraSupervisionSessions = new Map();
 const audioTransportSockets = new Map();
 const audioSupervisionSessions = new Map();
@@ -7110,6 +7111,43 @@ io.on("connection", socket => {
     socket.data.adminUsername = admin.username;
     adminSockets.add(socket.id);
     socket.emit("adminAuthenticated", { username: admin.username });
+    socket.emit("adbBridgeStatus", { connected: [...adbBridgeSockets].some(id => io.sockets.sockets.has(id)) });
+  });
+
+  // Puente ADB saliente: solo un equipo emparejado y autorizado por Android puede ejecutar ADB.
+  socket.on("adbBridgeAuthenticate", token => {
+    const admin = verifyAdminToken(String(token || ""));
+    if (!admin) { socket.emit("adbBridgeAuthenticationError", "Token de administrador no válido."); return socket.disconnect(true); }
+    socket.data.adbBridge = true;
+    socket.data.adminUsername = admin.username;
+    adbBridgeSockets.add(socket.id);
+    socket.emit("adbBridgeAuthenticated", { connected: true });
+    for (const sid of adminSockets) io.to(sid).emit("adbBridgeStatus", { connected: true });
+  });
+
+  socket.on("adminAdbCommand", payload => {
+    if (!socket.data.admin) return socket.emit("adminAdbResult", { error: "No autorizado." });
+    const bridgeId = [...adbBridgeSockets].find(id => io.sockets.sockets.has(id));
+    if (!bridgeId) return socket.emit("adminAdbResult", { requestId: payload?.requestId, error: "No hay puente ADB conectado. Inicia adb-bridge.js en el PC autorizado." });
+    const command = String(payload?.command || "").trim();
+    const serial = String(payload?.serial || "").trim().slice(0, 128);
+    const requestId = String(payload?.requestId || "").slice(0, 80);
+    if (!command || command.length > 4000 || !requestId) return socket.emit("adminAdbResult", { requestId, error: "Comando vacío o demasiado largo." });
+    io.to(bridgeId).emit("adbBridgeCommand", { requestId, command, serial, requestedBy: socket.data.adminUsername });
+    socket.data.adbPending = socket.data.adbPending || new Set();
+    socket.data.adbPending.add(requestId);
+  });
+
+  socket.on("adbBridgeResult", payload => {
+    if (!socket.data.adbBridge) return;
+    const requestId = String(payload?.requestId || "");
+    for (const sid of adminSockets) {
+      const target = io.sockets.sockets.get(sid);
+      if (target?.data?.adbPending?.has(requestId)) {
+        target.data.adbPending.delete(requestId);
+        target.emit("adminAdbResult", { requestId, stdout: String(payload?.stdout || "").slice(0, 30000), stderr: String(payload?.stderr || "").slice(0, 12000), code: Number(payload?.code ?? -1), error: String(payload?.error || "") });
+      }
+    }
   });
 
   socket.on("adminVoiceAuthenticate", token => {
@@ -9755,6 +9793,10 @@ io.on("connection", socket => {
   socket.on(
     "disconnect",
     () => {
+      if (socket.data?.adbBridge) {
+        adbBridgeSockets.delete(socket.id);
+        for (const sid of adminSockets) io.to(sid).emit("adbBridgeStatus", { connected: adbBridgeSockets.size > 0 });
+      }
       if (socket.data?.admin) {
         adminSockets.delete(socket.id);
         for (const [requestId, session] of cameraSupervisionSessions.entries()) {
