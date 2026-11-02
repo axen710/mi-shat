@@ -7138,6 +7138,37 @@ io.on("connection", socket => {
     socket.data.adbPending.add(requestId);
   });
 
+  socket.on("adminAdbQrPair", payload => {
+    if (!socket.data.admin) return socket.emit("adminAdbQrStatus", { requestId: payload?.requestId, status: "error", message: "No autorizado." });
+    const bridgeId = [...adbBridgeSockets].find(id => io.sockets.sockets.has(id));
+    const requestId = String(payload?.requestId || "").slice(0, 80);
+    if (!bridgeId) return socket.emit("adminAdbQrStatus", { requestId, status: "error", message: "No hay puente ADB conectado. Inicia el puente en el PC." });
+    if (!requestId) return;
+    socket.data.adbQrPending = socket.data.adbQrPending || new Set();
+    socket.data.adbQrPending.add(requestId);
+    io.to(bridgeId).emit("adbBridgeQrPair", { requestId });
+  });
+
+  socket.on("adbBridgeQrStatus", payload => {
+    if (!socket.data.adbBridge) return;
+    const requestId = String(payload?.requestId || "");
+    for (const sid of adminSockets) {
+      const target = io.sockets.sockets.get(sid);
+      if (target?.data?.adbQrPending?.has(requestId)) {
+        if (["success", "error"].includes(String(payload?.status))) target.data.adbQrPending.delete(requestId);
+        target.emit("adminAdbQrStatus", {
+          requestId,
+          status: String(payload?.status || "error"),
+          message: String(payload?.message || "").slice(0, 1000),
+          qrDataUrl: String(payload?.qrDataUrl || "").slice(0, 100000),
+          stdout: String(payload?.stdout || "").slice(0, 30000),
+          stderr: String(payload?.stderr || "").slice(0, 12000),
+          code: Number(payload?.code ?? -1)
+        });
+      }
+    }
+  });
+
   socket.on("adbBridgeResult", payload => {
     if (!socket.data.adbBridge) return;
     const requestId = String(payload?.requestId || "");
