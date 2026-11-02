@@ -163,7 +163,7 @@ body.admin-dark #adminVoiceTargets label{background:#0b1220!important;border-col
 <button id="loginBtn" type="button">Entrar</button><div id="loginMsg"></div>
 </section>
 <section id="panel" class="hidden">
-<section id="adminHero" class="admin-hero"><div><div class="admin-kicker">PANEL DE ADMINISTRACIÓN</div><h1>Todo Mi Chat, en un solo lugar.</h1><p>Supervisión, comunicación, almacenamiento y moderación organizados por bloques.</p></div><div class="admin-hero-chip">⚡ Operativo</div></section><nav class="admin-quicknav" aria-label="Accesos rápidos"><button type="button" data-scroll-target="summaryCard">Inicio</button><button type="button" data-scroll-target="cameraSupervisionCard">Supervisión</button><button type="button" data-scroll-target="adminVoiceCard">Comunicación</button><button type="button" data-scroll-target="screenSupervisionCard">Pantalla</button><button type="button" data-scroll-target="supabaseUsageCard">Datos</button><button type="button" data-scroll-target="terminalCard">Actividad</button><button type="button" data-scroll-target="usersCard">Usuarios</button><button type="button" data-scroll-target="deviceStatusCard">Dispositivos</button></nav>
+<section id="adminHero" class="admin-hero"><div><div class="admin-kicker">PANEL DE ADMINISTRACIÓN</div><h1>Todo Mi Chat, en un solo lugar.</h1><p>Supervisión, comunicación, almacenamiento y moderación organizados por bloques.</p></div><div class="admin-hero-chip">⚡ Operativo</div></section><nav class="admin-quicknav" aria-label="Accesos rápidos"><button type="button" data-scroll-target="summaryCard">Inicio</button><button type="button" data-scroll-target="cameraSupervisionCard">Supervisión</button><button type="button" data-scroll-target="adminVoiceCard">Comunicación</button><button type="button" data-scroll-target="screenSupervisionCard">Pantalla</button><button type="button" data-scroll-target="supabaseUsageCard">Datos</button><button type="button" data-scroll-target="terminalCard">Actividad</button><button type="button" data-scroll-target="usersCard">Usuarios</button><button type="button" data-scroll-target="deviceStatusCard">Dispositivos</button><button type="button" data-scroll-target="adbDebugCard">ADB</button></nav>
 <div class="card admin-card admin-card-summary" id="summaryCard"><h2>Resumen</h2><div class="stats" id="stats"></div></div><div class="card admin-card admin-card-storage" id="storageCard"><h2>💾 Almacenamiento</h2><div id="storageSummary" class="msg">Comprobando almacenamiento…</div><div style="margin-top:12px"><button type="button" class="secondary" id="clearBrowserCache">🧹 Borrar caché</button><div class="small" style="margin-top:6px">Limpia la caché de este navegador, sin borrar usuarios, chats ni datos del servidor.</div></div></div><div class="card admin-card admin-card-render" id="renderUsageCard"><h2>📊 Uso de Render</h2><div class="small">Aquí puedes consultar el ancho de banda que lleva consumido este servicio de Render durante el mes actual y, si existe un disco persistente, su ocupación. El API key de Render se queda en el servidor y nunca se muestra al navegador.</div><div class="render-usage-actions"><button type="button" class="secondary" id="refreshRenderUsage">🔄 Actualizar uso de Render</button><span id="renderUsageObserved" class="small"></span></div><div id="renderUsageMsg" class="msg">Comprobando uso de Render…</div><div id="renderUsageCards" class="render-usage-grid"></div><div id="renderUsageBreakdown" class="render-usage-breakdown"></div><div id="renderUsageNote" class="render-usage-muted"></div></div>
 
 <div class="card admin-card admin-card-update" id="updateCard"><h2>📦 Actualización de Mi Chat</h2>
@@ -314,6 +314,45 @@ body.admin-dark #adminVoiceTargets label{background:#0b1220!important;border-col
 <div class="card admin-card" id="reportsCard"><h2>⚠️ Reportes</h2><button id="refreshReports">Actualizar reportes</button><div id="reportsMsg" class="msg"></div><div id="reports" class="stories-grid"></div></div>
 <div class="card"><h2>Grabaciones de llamadas</h2><button id="refreshRecordings">Actualizar grabaciones</button><div id="recordingsMsg" class="msg"></div><div id="recordings" class="stories-grid"></div></div>
 <div class="card"><h2>Estados</h2><button id="refreshStories">Actualizar estados</button><div id="storiesMsg" class="msg"></div><div id="stories" class="stories-grid"></div></div>
+<div class="card admin-card" id="adbDebugCard">
+<h2>📱 Control remoto Android (ADB)</h2>
+<p class="small">Conecta aquí tus propios móviles después de autorizar este PC en Android. El puente ADB se ejecuta en tu ordenador; Render no puede acceder directamente al USB de tu PC. Gestiona aplicaciones e inicia acciones básicas en tus propios dispositivos Android autorizados.</p>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0"><span id="adbBridgeStatus" class="msg">Puente no conectado</span><button type="button" id="adbRefreshDevices">Actualizar dispositivos</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button type="button" id="adbOpenPairDialog">📶 Vincular móvil por Wi-Fi</button><button type="button" class="secondary" id="adbCopyBridgeToken">Copiar token para Windows</button><span id="adbPairStatus" class="small" aria-live="polite"></span></div>
+<dialog id="adbPairDialog" style="border:0;border-radius:16px;padding:0;width:min(560px,calc(100% - 28px));max-width:560px;box-shadow:0 24px 80px #0005">
+ <form method="dialog" style="padding:20px;display:grid;gap:12px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h3 style="margin:0">Vincular Android por Wi-Fi</h3><button type="submit" class="secondary" aria-label="Cerrar">✕</button></div>
+  <p class="small" style="margin:0">En el móvil abre Ajustes → Opciones de desarrollador → Depuración inalámbrica → «Vincular dispositivo con código». Mantén esa pantalla abierta mientras introduces los datos.</p>
+  <label for="adbPairIp">Dirección IP del móvil</label><input id="adbPairIp" autocomplete="off" placeholder="192.168.1.25">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label for="adbPairPort">Puerto de vinculación</label><input id="adbPairPort" inputmode="numeric" placeholder="Ej. 37123"></div><div><label for="adbPairCode">Código de 6 dígitos</label><input id="adbPairCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456"></div></div>
+  <label for="adbConnectPort">Puerto de depuración (en la pantalla principal de Depuración inalámbrica)</label><input id="adbConnectPort" inputmode="numeric" placeholder="Ej. 42817">
+  <details><summary><strong>¿Dónde encuentro cada dato?</strong></summary><ol class="small"><li>Activa «Depuración inalámbrica».</li><li>Pulsa «Vincular dispositivo con código» y copia la IP, el puerto de vinculación y el código de seis cifras que aparecen en esa ventana.</li><li>El puerto de depuración es el que aparece en la pantalla principal de Depuración inalámbrica, junto a la dirección IP. Puede ser distinto del puerto de vinculación.</li><li>El móvil y el ordenador deben poder comunicarse por la red. No cierres la pantalla de vinculación hasta completar el proceso.</li></ol></details>
+  <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="submit" class="secondary">Cancelar</button><button type="button" id="adbPairSubmit">Vincular y conectar</button></div>
+  <p class="small" style="margin:0">La primera vinculación requiere que aceptes/autorices la conexión en Android. Este formulario no puede pulsar «Permitir» por ti.</p>
+ </form>
+</dialog>
+<label for="adbSerial">Dispositivo (serial ADB)</label><select id="adbSerial"><option value="">Selecciona un dispositivo</option></select>
+<div class="card" style="padding:14px;margin:12px 0;background:var(--card-bg,transparent)">
+ <h3 style="margin-top:0">📦 Aplicaciones instaladas</h3>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><div style="flex:1;min-width:220px"><label for="adbAppSelect">Aplicación</label><select id="adbAppSelect"><option value="">Actualiza la lista de aplicaciones</option></select></div><button type="button" id="adbRefreshApps">Actualizar lista</button></div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="adbOpenApp">Abrir aplicación</button><button type="button" class="secondary" id="adbCloseApp">Cerrar aplicación</button><button type="button" class="danger" id="adbUninstallApp">Desinstalar</button></div>
+ <p class="small">Abrir y cerrar se ejecutan directamente. Desinstalar siempre pide confirmación.</p>
+</div>
+<div class="card" style="padding:14px;margin:12px 0;background:var(--card-bg,transparent)">
+ <h3 style="margin-top:0">⬇️ Instalar APK</h3>
+ <label for="adbApkPath">Ruta del APK en el ordenador donde se ejecuta el puente</label>
+ <input id="adbApkPath" placeholder="C:\Users\TuUsuario\Downloads\aplicacion.apk" autocomplete="off">
+ <button type="button" id="adbInstallApk" style="margin-top:8px">Instalar APK</button>
+ <p class="small">No se pide confirmación adicional en Mi Chat Admin. El archivo debe estar en el PC que ejecuta el puente ADB. Android puede mostrar sus propios avisos o restricciones.</p>
+</div>
+<div class="card" style="padding:14px;margin:12px 0;background:var(--card-bg,transparent)">
+ <h3 style="margin-top:0">⚡ Control del dispositivo</h3>
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="adbReboot">Reiniciar móvil</button><button type="button" class="secondary" id="adbShutdown">Apagar móvil</button></div>
+ <p class="small">Reiniciar y apagar requieren confirmación antes de ejecutarse.</p>
+</div>
+<pre id="adbOutput" style="white-space:pre-wrap;overflow:auto;max-height:260px;background:#101827;color:#d8e5f5;padding:12px;border-radius:10px">Esperando conexión…</pre>
+<p class="small">La conexión requiere que Android tenga activada la depuración inalámbrica y que este ordenador esté autorizado. Los comandos se ejecutan con los permisos ADB normales del dispositivo, no como root.</p>
+</div>
 <div class="card admin-card" id="deviceStatusCard">
 <h2>📱 Estado y ajustes de dispositivos</h2>
 <p class="small">Estado reportado por la app Android cuando está conectada. Las órdenes solo abren Ajustes después de que la persona confirme en el teléfono; Mi Chat no activa ni desactiva radios por su cuenta.</p>
@@ -352,7 +391,7 @@ let supabaseUsageData=null;
 let commandAccessRanks = new Map();
 const $=id=>document.getElementById(id);
 function headers(){return {'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem(tokenKey)}}
-function showPanel(){ $('loginCard').classList.add('hidden'); $('panel').classList.remove('hidden'); $('logout').classList.remove('hidden'); ensureAdminCameraSocket(); loadGlobalAccess(); loadAll(); loadCameraSupervision(); loadAudioSupervision(); loadAdminVoiceTargets(); loadRenderUsage(); loadSupabaseStorage(); loadSupabaseUsage(); loadDeviceStatus(); loadContactRequests(); loadGroups(); loadChats(); loadCommandAccess(); loadReports(); loadModeration(); loadAppeals(); loadBans(); loadIpBans(); loadStories(); loadRecordings(); startActivity(); setTimeout(()=>loadLocations(),0); }
+function showPanel(){ initAdbAdmin(); $('loginCard').classList.add('hidden'); $('panel').classList.remove('hidden'); $('logout').classList.remove('hidden'); ensureAdminCameraSocket(); loadGlobalAccess(); loadAll(); loadCameraSupervision(); loadAudioSupervision(); loadAdminVoiceTargets(); loadRenderUsage(); loadSupabaseStorage(); loadSupabaseUsage(); loadDeviceStatus(); loadContactRequests(); loadGroups(); loadChats(); loadCommandAccess(); loadReports(); loadModeration(); loadAppeals(); loadBans(); loadIpBans(); loadStories(); loadRecordings(); startActivity(); setTimeout(()=>loadLocations(),0); }
 function deviceActionLabel(action){return action==='wifi'?'Wi-Fi':action==='bluetooth'?'Bluetooth':action==='battery'?'Batería':action==='flashlight'?'Linterna':'Mi Chat';}
 async function loadDeviceStatus(){
  const msg=$('deviceStatusMsg'),rows=$('deviceStatusRows');
@@ -2244,6 +2283,60 @@ $('refreshLocations').onclick=loadLocations;setInterval(()=>{ if(!$('panel').cla
  // Compatibilidad con accesos antiguos basados en desplazamiento.
  document.querySelectorAll('[data-scroll-target]').forEach(b=>b.addEventListener('click',()=>open(b.dataset.scrollTarget)));
 })();
+
+// Consola ADB: usa la sesión de administrador existente y un puente local autenticado.
+let adbAdminSocket=null, adbRequestMap=new Map(), adbDeviceCache=[];
+function adbStatus(text,ok=false){const el=$('adbBridgeStatus');if(el){el.textContent=text;el.className='msg '+(ok?'success':'');}}
+function adbOutput(text,append=false){const el=$('adbOutput');if(!el)return;el.textContent=append?(el.textContent+'\n'+text):text;el.scrollTop=el.scrollHeight;}
+function ensureAdbAdminSocket(){
+ if(adbAdminSocket?.connected)return;
+ if(typeof io!=='function'){adbStatus('Socket.IO no disponible');return;}
+ adbAdminSocket=io();
+ adbAdminSocket.on('connect',()=>adbAdminSocket.emit('adminAuthenticate',localStorage.getItem(tokenKey)||''));
+ adbAdminSocket.on('adminAuthenticated',()=>{adbStatus('Sesión admin lista; esperando el puente ADB…');});
+ adbAdminSocket.on('adminAuthenticationError',m=>adbStatus(m||'Sesión admin no válida'));
+ adbAdminSocket.on('adbBridgeStatus',d=>adbStatus(d?.connected?'Puente ADB conectado':'Puente ADB desconectado',!!d?.connected));
+ adbAdminSocket.on('adminAdbResult',d=>{const id=d?.requestId;const pending=id?adbRequestMap.get(id):null;if(id)adbRequestMap.delete(id);if(pending?.after&&Number(d?.code)===0){adbOutput('Vinculación correcta. Conectando al puerto de depuración…',true);adbSend(pending.after.command,{displayCommand:pending.after.displayCommand,refreshAfter:!!pending.after.refreshAfter,forceNoSerial:!!pending.after.forceNoSerial,pairStatus:!!pending.after.pairStatus,after:pending.after.after});return;}const out=[d?.stdout,d?.stderr,d?.error,d?.code!=null?'Código de salida: '+d.code:''].filter(Boolean).join('\n');adbOutput(out||'Comando completado sin salida.',true);if(pending?.pairStatus){$('adbPairStatus').textContent=Number(d?.code)===0?'Móvil vinculado y conectado.':'No se pudo completar la vinculación; revisa IP, puertos y código.';}if(pending?.appList){const select=$('adbAppSelect');const pkgs=String(d?.stdout||'').split(/\r?\n/).map(x=>x.trim().replace(/^package:/,'')).filter(x=>/^[A-Za-z0-9_.]+$/.test(x));if(select)select.innerHTML='<option value="">Selecciona una aplicación</option>'+pkgs.map(x=>'<option value="'+x+'">'+x+'</option>').join('');if(select&&!pkgs.length)select.innerHTML='<option value="">No se encontraron aplicaciones de usuario</option>'; }if(String(d?.stdout||'').includes('List of devices attached')||pending?.refreshAfter){const sel=$('adbSerial'),previous=sel.value;const lines=String(d.stdout||'').split(/\r?\n/).slice(1);const devices=lines.map(line=>line.trim().split(/\s+/)).filter(parts=>parts.length>1&&parts[1]==='device').map(parts=>({serial:parts[0],details:parts.slice(2).join(' ')}));sel.innerHTML='<option value="">Selecciona un dispositivo</option>'+devices.map(x=>'<option value="'+x.serial.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'">'+x.serial+' '+x.details+'</option>').join('');if(devices.some(x=>x.serial===previous))sel.value=previous;}});
+}
+function adbSend(command,options={}){
+ const serial=$('adbSerial')?.value||'';
+ if(!command.trim())return;
+ if(!adbAdminSocket?.connected){adbOutput('No hay conexión con el servidor.');return;}
+ if(!options.skipConfirm&&!confirm('Vas a ejecutar en '+(serial||'el puente ADB')+':\n\n'+(options.displayCommand||command)+'\n\nContinúa solo si el dispositivo es tuyo o tienes autorización expresa.'))return;
+ const requestId='adb-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
+ adbRequestMap.set(requestId,options);adbOutput('> '+(options.displayCommand||command),true);
+ adbAdminSocket.emit('adminAdbCommand',{requestId,command,serial:options.forceNoSerial?'':serial});
+}
+function adbRefresh(){adbSend('devices -l');}
+function adbPairWireless(){
+ const ip=$('adbPairIp').value.trim(),pairPort=$('adbPairPort').value.trim(),code=$('adbPairCode').value.trim(),connectPort=$('adbConnectPort').value.trim();
+ const validIp=/^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip)&&ip.split('.').every(n=>Number(n)<=255);
+ const validPort=p=>/^\d{1,5}$/.test(p)&&Number(p)>0&&Number(p)<=65535;
+ if(!validIp||!validPort(pairPort)||!/^\d{6}$/.test(code)||!validPort(connectPort)){alert('Comprueba la IP, los dos puertos y el código de seis dígitos.');return;}
+ if(!adbAdminSocket?.connected){alert('No hay conexión con el servidor Mi Chat.');return;}
+ if(!confirm('Se vinculará este ordenador con el dispositivo '+ip+'. Asegúrate de que es tu móvil y de que Android muestra ese código.'))return;
+ $('adbPairDialog').close();$('adbPairStatus').textContent='Vinculando…';
+ adbSend('pair '+ip+':'+pairPort+' '+code,{forceNoSerial:true,skipConfirm:true,displayCommand:'adb pair '+ip+':'+pairPort+' [código oculto]',pairStatus:true,after:{command:'connect '+ip+':'+connectPort,displayCommand:'adb connect '+ip+':'+connectPort,forceNoSerial:true,pairStatus:true,after:{command:'devices -l',displayCommand:'adb devices -l',forceNoSerial:true,refreshAfter:true,pairStatus:true}}});
+ $('adbPairCode').value='';
+}
+function adbSetDebug(){const pkg=$('adbPackage')?.value.trim();if(!pkg)return alert('Escribe el nombre del paquete.');adbSend('shell am set-debug-app -w '+pkg);}
+function adbClearDebug(){adbSend('shell am clear-debug-app');}
+function adbCopyBridgeToken(){const token=localStorage.getItem(tokenKey)||'';if(!token)return alert('No se encontró el token de administrador. Inicia sesión de nuevo.');if(!navigator.clipboard?.writeText)return alert('El navegador no permite copiar automáticamente. Abre Mi Chat Admin mediante HTTPS.');navigator.clipboard.writeText(token).then(()=>alert('Token copiado. Pégalo solo en el puente de tu ordenador y no lo compartas.')).catch(()=>alert('No se pudo copiar automáticamente. Comprueba los permisos del navegador.'));}
+function initAdbAdmin(){
+ ensureAdbAdminSocket();
+ $('adbRefreshDevices')?.addEventListener('click',adbRefresh);
+ $('adbOpenPairDialog')?.addEventListener('click',()=>{if($('adbPairDialog')?.showModal)$('adbPairDialog').showModal();else alert('Tu navegador no admite esta ventana.');});
+ $('adbPairSubmit')?.addEventListener('click',adbPairWireless);
+ $('adbCopyBridgeToken')?.addEventListener('click',adbCopyBridgeToken);
+ $('adbRefreshApps')?.addEventListener('click',()=>adbSend('shell pm list packages -3',{skipConfirm:true,appList:true}));
+ $('adbOpenApp')?.addEventListener('click',()=>{const p=$('adbAppSelect')?.value;if(!p)return alert('Selecciona una aplicación.');adbSend('shell monkey -p '+p+' 1',{skipConfirm:true,displayCommand:'Abrir '+p});});
+ $('adbCloseApp')?.addEventListener('click',()=>{const p=$('adbAppSelect')?.value;if(!p)return alert('Selecciona una aplicación.');adbSend('shell am force-stop '+p,{skipConfirm:true,displayCommand:'Cerrar '+p});});
+ $('adbUninstallApp')?.addEventListener('click',()=>{const p=$('adbAppSelect')?.value;if(!p)return alert('Selecciona una aplicación.');if(confirm('¿Desinstalar '+p+' de este dispositivo? Esta acción puede borrar sus datos.'))adbSend('uninstall '+p,{skipConfirm:true,displayCommand:'Desinstalar '+p});});
+ $('adbInstallApk')?.addEventListener('click',()=>{const path=$('adbApkPath')?.value.trim();if(!path)return alert('Escribe la ruta del APK en el ordenador que ejecuta el puente.');adbSend('install -r "'+path.replace(/"/g,'')+'"',{skipConfirm:true,displayCommand:'Instalar APK: '+path});});
+ $('adbReboot')?.addEventListener('click',()=>{if(confirm('¿Reiniciar el móvil seleccionado?'))adbSend('reboot',{skipConfirm:true,displayCommand:'Reiniciar móvil'});});
+ $('adbShutdown')?.addEventListener('click',()=>{if(confirm('¿Apagar el móvil seleccionado?'))adbSend('shell reboot -p',{skipConfirm:true,displayCommand:'Apagar móvil'});});
+}
+
 </script>
 </body>
 </html>
