@@ -318,7 +318,7 @@ body.admin-dark #adminVoiceTargets label{background:#0b1220!important;border-col
 <h2>📱 Control remoto Android (ADB)</h2>
 <p class="small">Conecta aquí tus propios móviles después de autorizar este PC en Android. El puente ADB se ejecuta en tu ordenador; Render no puede acceder directamente al USB de tu PC. Gestiona aplicaciones e inicia acciones básicas en tus propios dispositivos Android autorizados.</p>
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0"><span id="adbBridgeStatus" class="msg">Puente no conectado</span><button type="button" id="adbRefreshDevices">Actualizar dispositivos</button></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button type="button" id="adbOpenPairDialog">📶 Vincular móvil por Wi-Fi</button><button type="button" class="secondary" id="adbCopyBridgeToken">Copiar token para Windows</button><span id="adbPairStatus" class="small" aria-live="polite"></span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button type="button" id="adbOpenPairDialog">📶 Vincular por código</button><button type="button" id="adbStartQrPair">▦ Conectar con QR</button><button type="button" class="secondary" id="adbCopyBridgeToken">Copiar token para Windows</button><span id="adbPairStatus" class="small" aria-live="polite"></span></div>
 <dialog id="adbPairDialog" style="border:0;border-radius:16px;padding:0;width:min(560px,calc(100% - 28px));max-width:560px;box-shadow:0 24px 80px #0005">
  <form method="dialog" style="padding:20px;display:grid;gap:12px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h3 style="margin:0">Vincular Android por Wi-Fi</h3><button type="submit" class="secondary" aria-label="Cerrar">✕</button></div>
@@ -330,6 +330,13 @@ body.admin-dark #adminVoiceTargets label{background:#0b1220!important;border-col
   <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="submit" class="secondary">Cancelar</button><button type="button" id="adbPairSubmit">Vincular y conectar</button></div>
   <p class="small" style="margin:0">La primera vinculación requiere que aceptes/autorices la conexión en Android. Este formulario no puede pulsar «Permitir» por ti.</p>
  </form>
+</dialog>
+<dialog id="adbQrDialog" style="border:0;border-radius:16px;padding:20px;width:min(440px,calc(100% - 28px));box-shadow:0 24px 80px #0005;text-align:center">
+ <h3 style="margin-top:0">Conectar Android con QR</h3>
+ <p id="adbQrMessage" class="small">Preparando código QR…</p>
+ <img id="adbQrImage" alt="Código QR de vinculación ADB" style="display:none;width:min(300px,80vw);height:auto;margin:12px auto;background:white;padding:10px;border-radius:12px">
+ <p class="small">En el móvil: Ajustes → Opciones de desarrollador → Depuración inalámbrica → Vincular dispositivo con código QR. Escanea este código. El móvil y el PC deben estar en la misma Wi-Fi.</p>
+ <button type="button" class="secondary" id="adbQrClose">Cerrar</button>
 </dialog>
 <label for="adbSerial">Dispositivo (serial ADB)</label><select id="adbSerial"><option value="">Selecciona un dispositivo</option></select>
 <div class="card" style="padding:14px;margin:12px 0;background:var(--card-bg,transparent)">
@@ -2296,6 +2303,13 @@ function ensureAdbAdminSocket(){
  adbAdminSocket.on('adminAuthenticated',()=>{adbStatus('Sesión admin lista; esperando el puente ADB…');});
  adbAdminSocket.on('adminAuthenticationError',m=>adbStatus(m||'Sesión admin no válida'));
  adbAdminSocket.on('adbBridgeStatus',d=>adbStatus(d?.connected?'Puente ADB conectado':'Puente ADB desconectado',!!d?.connected));
+ adbAdminSocket.on('adminAdbQrStatus',d=>{
+  if(d?.status==='ready'){$('adbQrImage').src=d.qrDataUrl;$('adbQrImage').style.display='block';$('adbQrMessage').textContent=d.message||'Escanea el QR desde Android. Esperando…';}
+  else if(d?.status==='pairing'||d?.status==='connecting'){$('adbQrMessage').textContent=d.message||'Conectando…';}
+  else if(d?.status==='success'){$('adbQrMessage').textContent=d.message||'Conectado.';$('adbPairStatus').textContent='Móvil vinculado y conectado.';const sel=$('adbSerial'),lines=String(d.stdout||'').split(/\r?\n/).slice(1),devices=lines.map(line=>line.trim().split(/\s+/)).filter(parts=>parts.length>1&&parts[1]==='device');sel.innerHTML='<option value="">Selecciona un dispositivo</option>'+devices.map(x=>'<option value="'+x[0]+'">'+x[0]+'</option>').join('');}
+  else if(d?.status==='error'){$('adbQrMessage').textContent='Error: '+(d.message||'No se pudo vincular.');}
+  if(d?.stdout||d?.stderr)adbOutput([d.stdout,d.stderr].filter(Boolean).join('\n'),true);
+ });
  adbAdminSocket.on('adminAdbResult',d=>{const id=d?.requestId;const pending=id?adbRequestMap.get(id):null;if(id)adbRequestMap.delete(id);if(pending?.after&&Number(d?.code)===0){adbOutput('Vinculación correcta. Conectando al puerto de depuración…',true);adbSend(pending.after.command,{displayCommand:pending.after.displayCommand,refreshAfter:!!pending.after.refreshAfter,forceNoSerial:!!pending.after.forceNoSerial,pairStatus:!!pending.after.pairStatus,after:pending.after.after});return;}const out=[d?.stdout,d?.stderr,d?.error,d?.code!=null?'Código de salida: '+d.code:''].filter(Boolean).join('\n');adbOutput(out||'Comando completado sin salida.',true);if(pending?.pairStatus){$('adbPairStatus').textContent=Number(d?.code)===0?'Móvil vinculado y conectado.':'No se pudo completar la vinculación; revisa IP, puertos y código.';}if(pending?.appList){const select=$('adbAppSelect');const pkgs=String(d?.stdout||'').split(/\r?\n/).map(x=>x.trim().replace(/^package:/,'')).filter(x=>/^[A-Za-z0-9_.]+$/.test(x));if(select)select.innerHTML='<option value="">Selecciona una aplicación</option>'+pkgs.map(x=>'<option value="'+x+'">'+x+'</option>').join('');if(select&&!pkgs.length)select.innerHTML='<option value="">No se encontraron aplicaciones de usuario</option>'; }if(String(d?.stdout||'').includes('List of devices attached')||pending?.refreshAfter){const sel=$('adbSerial'),previous=sel.value;const lines=String(d.stdout||'').split(/\r?\n/).slice(1);const devices=lines.map(line=>line.trim().split(/\s+/)).filter(parts=>parts.length>1&&parts[1]==='device').map(parts=>({serial:parts[0],details:parts.slice(2).join(' ')}));sel.innerHTML='<option value="">Selecciona un dispositivo</option>'+devices.map(x=>'<option value="'+x.serial.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'">'+x.serial+' '+x.details+'</option>').join('');if(devices.some(x=>x.serial===previous))sel.value=previous;}});
 }
 function adbSend(command,options={}){
@@ -2319,6 +2333,14 @@ function adbPairWireless(){
  adbSend('pair '+ip+':'+pairPort+' '+code,{forceNoSerial:true,skipConfirm:true,displayCommand:'adb pair '+ip+':'+pairPort+' [código oculto]',pairStatus:true,after:{command:'connect '+ip+':'+connectPort,displayCommand:'adb connect '+ip+':'+connectPort,forceNoSerial:true,pairStatus:true,after:{command:'devices -l',displayCommand:'adb devices -l',forceNoSerial:true,refreshAfter:true,pairStatus:true}}});
  $('adbPairCode').value='';
 }
+function adbStartQrPair(){
+ if(!adbAdminSocket?.connected){alert('No hay conexión con el servidor Mi Chat.');return;}
+ if(!confirm('Se generará un QR temporal para vincular tu propio móvil. Escanéalo solo con el dispositivo que quieras autorizar.'))return;
+ const dlg=$('adbQrDialog');$('adbQrImage').style.display='none';$('adbQrImage').removeAttribute('src');$('adbQrMessage').textContent='Generando QR y esperando al móvil…';
+ if(dlg?.showModal)dlg.showModal();
+ const requestId='adbqr-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
+ adbAdminSocket.emit('adminAdbQrPair',{requestId});
+}
 function adbSetDebug(){const pkg=$('adbPackage')?.value.trim();if(!pkg)return alert('Escribe el nombre del paquete.');adbSend('shell am set-debug-app -w '+pkg);}
 function adbClearDebug(){adbSend('shell am clear-debug-app');}
 function adbCopyBridgeToken(){const token=localStorage.getItem(tokenKey)||'';if(!token)return alert('No se encontró el token de administrador. Inicia sesión de nuevo.');if(!navigator.clipboard?.writeText)return alert('El navegador no permite copiar automáticamente. Abre Mi Chat Admin mediante HTTPS.');navigator.clipboard.writeText(token).then(()=>alert('Token copiado. Pégalo solo en el puente de tu ordenador y no lo compartas.')).catch(()=>alert('No se pudo copiar automáticamente. Comprueba los permisos del navegador.'));}
@@ -2327,6 +2349,8 @@ function initAdbAdmin(){
  $('adbRefreshDevices')?.addEventListener('click',adbRefresh);
  $('adbOpenPairDialog')?.addEventListener('click',()=>{if($('adbPairDialog')?.showModal)$('adbPairDialog').showModal();else alert('Tu navegador no admite esta ventana.');});
  $('adbPairSubmit')?.addEventListener('click',adbPairWireless);
+ $('adbStartQrPair')?.addEventListener('click',adbStartQrPair);
+ $('adbQrClose')?.addEventListener('click',()=>$('adbQrDialog')?.close());
  $('adbCopyBridgeToken')?.addEventListener('click',adbCopyBridgeToken);
  $('adbRefreshApps')?.addEventListener('click',()=>adbSend('shell pm list packages -3',{skipConfirm:true,appList:true}));
  $('adbOpenApp')?.addEventListener('click',()=>{const p=$('adbAppSelect')?.value;if(!p)return alert('Selecciona una aplicación.');adbSend('shell monkey -p '+p+' 1',{skipConfirm:true,displayCommand:'Abrir '+p});});
